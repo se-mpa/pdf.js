@@ -901,12 +901,11 @@ const PDFViewerApplication = {
       let value = apiParameters[key];
 
       if (key === "docBaseUrl" && !value) {
-        if (typeof PDFJSDev === "undefined" || !PDFJSDev.test("PRODUCTION")) {
-          value = document.URL.split("#")[0];
-        } else if (PDFJSDev.test("MOZCENTRAL || CHROME")) {
-          value = this.baseUrl;
-        }
+        // Set docBaseUrl to allow resolving of relative href's.
+        value = file.substring(0, file.lastIndexOf("/")) + "/";
+        value = value.replace("/storage/", "/viewer/");
       }
+
       parameters[key] = value;
     }
     // Finally, update the API parameters with the arguments (if they exist).
