@@ -11,11 +11,11 @@
   "disableFontFace": false,
   "textLayerMode": 1,
   "useOnlyCssZoom": false,
-  "externalLinkTarget": 0,
+  "externalLinkTarget": 1,
   "renderer": "canvas",
   "renderInteractiveForms": false,
   "enablePrintAutoRotate": false,
-  "disablePageMode": false,
+  "disablePageMode": true,
   "disablePageLabels": false,
   "scrollModeOnLoad": 0,
   "spreadModeOnLoad": 0
