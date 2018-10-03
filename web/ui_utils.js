@@ -13,8 +13,6 @@
  * limitations under the License.
  */
 
-import { createPromiseCapability } from 'pdfjs-lib';
-
 const CSS_UNITS = 96.0 / 72.0;
 const DEFAULT_SCALE_VALUE = 'auto';
 const DEFAULT_SCALE = 1.0;
@@ -58,21 +56,19 @@ function formatL10nValue(text, args) {
  * @implements {IL10n}
  */
 let NullL10n = {
-  getLanguage() {
-    return Promise.resolve('en-us');
+  async getLanguage() {
+    return 'en-us';
   },
 
-  getDirection() {
-    return Promise.resolve('ltr');
+  async getDirection() {
+    return 'ltr';
   },
 
-  get(property, args, fallback) {
-    return Promise.resolve(formatL10nValue(fallback, args));
+  async get(property, args, fallback) {
+    return formatL10nValue(fallback, args);
   },
 
-  translate(element) {
-    return Promise.resolve();
-  },
+  async translate(element) { },
 };
 
 /**
@@ -536,20 +532,12 @@ function noContextMenuHandler(evt) {
   evt.preventDefault();
 }
 
-function isFileSchema(url) {
-  let i = 0, ii = url.length;
-  while (i < ii && url[i].trim() === '') {
-    i++;
-  }
-  return url.substr(i, 7).toLowerCase() === 'file://';
-}
-
 function isDataSchema(url) {
   let i = 0, ii = url.length;
   while (i < ii && url[i].trim() === '') {
     i++;
   }
-  return url.substr(i, 5).toLowerCase() === 'data:';
+  return url.substring(i, i + 5).toLowerCase() === 'data:';
 }
 
 /**
@@ -560,6 +548,9 @@ function isDataSchema(url) {
  * @returns {string} Guessed PDF filename.
  */
 function getPDFFileNameFromURL(url, defaultFilename = 'document.pdf') {
+  if (typeof url !== 'string') {
+    return defaultFilename;
+  }
   if (isDataSchema(url)) {
     console.warn('getPDFFileNameFromURL: ' +
                  'ignoring "data:" URL for performance reasons.');
@@ -619,16 +610,6 @@ function isPortraitOrientation(size) {
   return size.width <= size.height;
 }
 
-function cloneObj(obj) {
-  let result = Object.create(null);
-  for (let i in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, i)) {
-      result[i] = obj[i];
-    }
-  }
-  return result;
-}
-
 const WaitOnType = {
   EVENT: 'event',
   TIMEOUT: 'timeout',
@@ -652,43 +633,48 @@ const WaitOnType = {
  * @returns {Promise} A promise that is resolved with a {WaitOnType} value.
  */
 function waitOnEventOrTimeout({ target, name, delay = 0, }) {
-  if (typeof target !== 'object' || !(name && typeof name === 'string') ||
-      !(Number.isInteger(delay) && delay >= 0)) {
-    return Promise.reject(
-      new Error('waitOnEventOrTimeout - invalid parameters.'));
-  }
-  let capability = createPromiseCapability();
+  return new Promise(function(resolve, reject) {
+    if (typeof target !== 'object' || !(name && typeof name === 'string') ||
+        !(Number.isInteger(delay) && delay >= 0)) {
+      throw new Error('waitOnEventOrTimeout - invalid parameters.');
+    }
 
-  function handler(type) {
+    function handler(type) {
+      if (target instanceof EventBus) {
+        target.off(name, eventHandler);
+      } else {
+        target.removeEventListener(name, eventHandler);
+      }
+
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      resolve(type);
+    }
+
+    const eventHandler = handler.bind(null, WaitOnType.EVENT);
     if (target instanceof EventBus) {
-      target.off(name, eventHandler);
+      target.on(name, eventHandler);
     } else {
-      target.removeEventListener(name, eventHandler);
+      target.addEventListener(name, eventHandler);
     }
 
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-    capability.resolve(type);
-  }
-
-  let eventHandler = handler.bind(null, WaitOnType.EVENT);
-  if (target instanceof EventBus) {
-    target.on(name, eventHandler);
-  } else {
-    target.addEventListener(name, eventHandler);
-  }
-
-  let timeoutHandler = handler.bind(null, WaitOnType.TIMEOUT);
-  let timeout = setTimeout(timeoutHandler, delay);
-
-  return capability.promise;
+    const timeoutHandler = handler.bind(null, WaitOnType.TIMEOUT);
+    let timeout = setTimeout(timeoutHandler, delay);
+  });
 }
 
 /**
  * Promise that is resolved when DOM window becomes visible.
  */
 let animationStarted = new Promise(function (resolve) {
+  if ((typeof PDFJSDev !== 'undefined' && PDFJSDev.test('LIB')) &&
+      typeof window === 'undefined') {
+    // Prevent "ReferenceError: window is not defined" errors when running the
+    // unit-tests in Node.js/Travis.
+    setTimeout(resolve, 20);
+    return;
+  }
   window.requestAnimationFrame(resolve);
 });
 
@@ -698,8 +684,9 @@ let animationStarted = new Promise(function (resolve) {
  * used.
  */
 class EventBus {
-  constructor() {
+  constructor({ dispatchToDOM = false, } = {}) {
     this._listeners = Object.create(null);
+    this._dispatchToDOM = dispatchToDOM === true;
   }
 
   on(eventName, listener) {
@@ -723,15 +710,48 @@ class EventBus {
   dispatch(eventName) {
     let eventListeners = this._listeners[eventName];
     if (!eventListeners || eventListeners.length === 0) {
+      if (this._dispatchToDOM) {
+        const args = Array.prototype.slice.call(arguments, 1);
+        this._dispatchDOMEvent(eventName, args);
+      }
       return;
     }
     // Passing all arguments after the eventName to the listeners.
-    let args = Array.prototype.slice.call(arguments, 1);
+    const args = Array.prototype.slice.call(arguments, 1);
     // Making copy of the listeners array in case if it will be modified
     // during dispatch.
     eventListeners.slice(0).forEach(function (listener) {
       listener.apply(null, args);
     });
+    if (this._dispatchToDOM) {
+      this._dispatchDOMEvent(eventName, args);
+    }
+  }
+
+  /**
+   * @private
+   */
+  _dispatchDOMEvent(eventName, args = null) {
+    if (!this._dispatchToDOM) {
+      return;
+    }
+    const details = Object.create(null);
+    if (args && args.length > 0) {
+      const obj = args[0];
+      for (let key in obj) {
+        const value = obj[key];
+        if (key === 'source') {
+          if (value === window || value === document) {
+            return; // No need to re-dispatch (already) global events.
+          }
+          continue; // Ignore the `source` property.
+        }
+        details[key] = value;
+      }
+    }
+    const event = document.createEvent('CustomEvent');
+    event.initCustomEvent(eventName, true, true, details);
+    document.dispatchEvent(event);
   }
 }
 
@@ -843,8 +863,6 @@ export {
   VERTICAL_PADDING,
   isValidRotation,
   isPortraitOrientation,
-  isFileSchema,
-  cloneObj,
   PresentationModeState,
   RendererType,
   TextLayerMode,
