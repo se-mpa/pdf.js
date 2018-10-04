@@ -12,7 +12,7 @@
   "disableFontFace": false,
   "textLayerMode": 1,
   "useOnlyCssZoom": false,
-  "externalLinkTarget": 1,
+  "externalLinkTarget": 2,
   "renderer": "canvas",
   "renderInteractiveForms": false,
   "enablePrintAutoRotate": false,
