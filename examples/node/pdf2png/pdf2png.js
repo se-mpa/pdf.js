@@ -57,7 +57,8 @@ var pdfURL = '../../../web/compressed.tracemonkey-pldi-09.pdf';
 var rawData = new Uint8Array(fs.readFileSync(pdfURL));
 
 // Load the PDF file.
-pdfjsLib.getDocument(rawData).then(function (pdfDocument) {
+var loadingTask = pdfjsLib.getDocument(rawData);
+loadingTask.promise.then(function(pdfDocument) {
   console.log('# PDF document loaded.');
 
   // Get the first page.
@@ -65,21 +66,24 @@ pdfjsLib.getDocument(rawData).then(function (pdfDocument) {
     // Render the page on a Node canvas with 100% scale.
     var viewport = page.getViewport(1.0);
     var canvasFactory = new NodeCanvasFactory();
-    var canvasAndContext = canvasFactory.create(viewport.width, viewport.height);
+    var canvasAndContext =
+      canvasFactory.create(viewport.width, viewport.height);
     var renderContext = {
       canvasContext: canvasAndContext.context,
       viewport: viewport,
-      canvasFactory: canvasFactory
+      canvasFactory: canvasFactory,
     };
 
-    page.render(renderContext).then(function () {
+    var renderTask = page.render(renderContext);
+    renderTask.promise.then(function() {
       // Convert the canvas to an image buffer.
       var image = canvasAndContext.canvas.toBuffer();
       fs.writeFile('output.png', image, function (error) {
         if (error) {
           console.error('Error: ' + error);
         } else {
-          console.log('Finished converting first page of PDF file to a PNG image.');
+          console.log(
+            'Finished converting first page of PDF file to a PNG image.');
         }
       });
     });

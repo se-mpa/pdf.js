@@ -142,9 +142,20 @@ describe('api', function() {
       // Sanity check to make sure that we fetched the entire PDF file.
       expect(typedArrayPdf.length).toEqual(basicApiFileLength);
 
-      var loadingTask = getDocument(typedArrayPdf);
-      loadingTask.promise.then(function(data) {
-        expect(data instanceof PDFDocumentProxy).toEqual(true);
+      const loadingTask = getDocument(typedArrayPdf);
+
+      const progressReportedCapability = createPromiseCapability();
+      loadingTask.onProgress = function(data) {
+        progressReportedCapability.resolve(data);
+      };
+
+      Promise.all([
+        loadingTask.promise,
+        progressReportedCapability.promise,
+      ]).then(function(data) {
+        expect(data[0] instanceof PDFDocumentProxy).toEqual(true);
+        expect(data[1].loaded / data[1].total).toEqual(1);
+
         loadingTask.destroy().then(done);
       }).catch(done.fail);
     });
@@ -818,6 +829,8 @@ describe('api', function() {
       var promise = doc.getMetadata();
       promise.then(function({ info, metadata, contentDispositionFilename, }) {
         expect(info['Title']).toEqual('Basic API Test');
+        // Custom, non-standard, information dictionary entries.
+        expect(info['Custom']).toEqual(undefined);
         // The following are PDF.js specific, non-standard, properties.
         expect(info['PDFFormatVersion']).toEqual('1.7');
         expect(info['IsLinearized']).toEqual(false);
@@ -831,6 +844,34 @@ describe('api', function() {
         done();
       }).catch(done.fail);
     });
+    it('gets metadata, with custom info dict entries', function(done) {
+      var loadingTask = getDocument(buildGetDocumentParams('tracemonkey.pdf'));
+
+      loadingTask.promise.then(function(pdfDocument) {
+        return pdfDocument.getMetadata();
+      }).then(function({ info, metadata, contentDispositionFilename, }) {
+        expect(info['Creator']).toEqual('TeX');
+        expect(info['Producer']).toEqual('pdfeTeX-1.21a');
+        expect(info['CreationDate']).toEqual('D:20090401163925-07\'00\'');
+        // Custom, non-standard, information dictionary entries.
+        const custom = info['Custom'];
+        expect(typeof custom === 'object' && custom !== null).toEqual(true);
+
+        expect(custom['PTEX.Fullbanner']).toEqual('This is pdfeTeX, ' +
+          'Version 3.141592-1.21a-2.2 (Web2C 7.5.4) kpathsea version 3.5.6');
+        // The following are PDF.js specific, non-standard, properties.
+        expect(info['PDFFormatVersion']).toEqual('1.4');
+        expect(info['IsLinearized']).toEqual(false);
+        expect(info['IsAcroFormPresent']).toEqual(false);
+        expect(info['IsXFAPresent']).toEqual(false);
+
+        expect(metadata).toEqual(null);
+        expect(contentDispositionFilename).toEqual(null);
+
+        loadingTask.destroy().then(done);
+      }).catch(done.fail);
+    });
+
     it('gets data', function(done) {
       var promise = doc.getData();
       promise.then(function (data) {
@@ -1321,26 +1362,23 @@ describe('api', function() {
 
     // Render the first page of the given PDF file.
     // Fulfills the promise with the base64-encoded version of the PDF.
-    function renderPDF(filename) {
-      var loadingTask = getDocument(filename);
+    async function renderPDF(filename) {
+      const loadingTask = getDocument(filename);
       loadingTasks.push(loadingTask);
-      return loadingTask.promise
-        .then(function(pdf) {
-          pdfDocuments.push(pdf);
-          return pdf.getPage(1);
-        }).then(function(page) {
-          var viewport = page.getViewport(1.2);
-          var canvasAndCtx = CanvasFactory.create(viewport.width,
-                                                  viewport.height);
-          return page.render({
-            canvasContext: canvasAndCtx.context,
-            viewport,
-          }).then(function() {
-            var data = canvasAndCtx.canvas.toDataURL();
-            CanvasFactory.destroy(canvasAndCtx);
-            return data;
-          });
-        });
+      const pdf = await loadingTask.promise;
+      pdfDocuments.push(pdf);
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport(1.2);
+      const canvasAndCtx = CanvasFactory.create(viewport.width,
+                                                viewport.height);
+      const renderTask = page.render({
+        canvasContext: canvasAndCtx.context,
+        viewport,
+      });
+      await renderTask.promise;
+      const data = canvasAndCtx.canvas.toDataURL();
+      CanvasFactory.destroy(canvasAndCtx);
+      return data;
     }
 
     afterEach(function(done) {

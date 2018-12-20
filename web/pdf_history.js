@@ -14,9 +14,8 @@
  */
 
 import {
-  isValidRotation, parseQueryString, waitOnEventOrTimeout
+  getGlobalEventBus, isValidRotation, parseQueryString, waitOnEventOrTimeout
 } from './ui_utils';
-import { getGlobalEventBus } from './dom_events';
 
 // Heuristic value used when force-resetting `this._blockHashChange`.
 const HASH_CHANGE_TIMEOUT = 1000; // milliseconds
@@ -330,8 +329,8 @@ class PDFHistory {
     }
 
     let forceReplace = false;
-    if (this._destination.page === position.first ||
-        this._destination.page === position.page) {
+    if (this._destination.page >= position.first &&
+        this._destination.page <= position.page) {
       // When the `page` of `this._destination` is still visible, do not
       // update the browsing history when `this._destination` either:
       //  - contains an internal destination, since in this case we

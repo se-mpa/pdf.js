@@ -1648,7 +1648,7 @@ class NameOrNumberTree {
     // contains the key we are looking for.
     while (kidsOrEntries.has('Kids')) {
       if (++loopCount > MAX_LEVELS) {
-        warn('Search depth limit reached for "' + this._type + '" tree.');
+        warn(`Search depth limit reached for "${this._type}" tree.`);
         return null;
       }
 
@@ -1686,13 +1686,26 @@ class NameOrNumberTree {
       while (l <= r) {
         // Check only even indices (0, 2, 4, ...) because the
         // odd indices contain the actual data.
-        const m = (l + r) & ~1;
+        const tmp = (l + r) >> 1, m = tmp + (tmp & 1);
         const currentKey = xref.fetchIfRef(entries[m]);
         if (key < currentKey) {
           r = m - 2;
         } else if (key > currentKey) {
           l = m + 2;
         } else {
+          return xref.fetchIfRef(entries[m + 1]);
+        }
+      }
+
+      // Fallback to an exhaustive search, in an attempt to handle corrupt
+      // PDF files where keys are not correctly ordered (fixes issue 10272).
+      info(`Falling back to an exhaustive search, for key "${key}", ` +
+           `in "${this._type}" tree.`);
+      for (let m = 0, mm = entries.length; m < mm; m += 2) {
+        const currentKey = xref.fetchIfRef(entries[m]);
+        if (currentKey === key) {
+          warn(`The "${key}" key was found at an incorrect, ` +
+               `i.e. out-of-order, position in "${this._type}" tree.`);
           return xref.fetchIfRef(entries[m + 1]);
         }
       }
