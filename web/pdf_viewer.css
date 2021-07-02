@@ -14,6 +14,7 @@
  */
 @import url(text_layer_builder.css);
 @import url(annotation_layer_builder.css);
+@import url(xfa_layer_builder.css);
 
 .pdfViewer .canvasWrapper {
   overflow: hidden;
@@ -23,17 +24,17 @@
   direction: ltr;
   width: 816px;
   height: 1056px;
-  margin: 1px auto -8px auto;
+  margin: 1px auto -8px;
   position: relative;
   overflow: visible;
   border: 9px solid transparent;
   background-clip: content-box;
   border-image: url(images/shadow.png) 9 9 repeat;
-  background-color: white;
+  background-color: rgba(255, 255, 255, 1);
 }
 
 .pdfViewer.removePageBorders .page {
-  margin: 0px auto 10px auto;
+  margin: 0 auto 10px;
   border: none;
 }
 
@@ -46,13 +47,16 @@
   border: none;
 }
 
-.pdfViewer.scrollHorizontal, .pdfViewer.scrollWrapped, .spread {
+.pdfViewer.scrollHorizontal,
+.pdfViewer.scrollWrapped,
+.spread {
   margin-left: 3.5px;
   margin-right: 3.5px;
   text-align: center;
 }
 
-.pdfViewer.scrollHorizontal, .spread {
+.pdfViewer.scrollHorizontal,
+.spread {
   white-space: nowrap;
 }
 
@@ -102,7 +106,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  background: url('images/loading-icon.gif') center no-repeat;
+  background: url("images/loading-icon.gif") center no-repeat;
 }
 
 .pdfPresentationMode .pdfViewer {
@@ -119,10 +123,6 @@
 .pdfPresentationMode .pdfViewer.removePageBorders .page {
   margin-left: auto;
   margin-right: auto;
-}
-
-.pdfPresentationMode:-ms-fullscreen .pdfViewer .page {
-  margin-bottom: 100% !important;
 }
 
 .pdfPresentationMode:fullscreen .pdfViewer .page {

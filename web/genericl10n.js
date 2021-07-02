@@ -13,9 +13,10 @@
  * limitations under the License.
  */
 
-import '../external/webL10n/l10n';
+import "../external/webL10n/l10n.js";
+import { getL10nFallback } from "./l10n_utils.js";
 
-let webL10n = document.webL10n;
+const webL10n = document.webL10n;
 
 class GenericL10n {
   constructor(lang) {
@@ -37,9 +38,9 @@ class GenericL10n {
     return l10n.getDirection();
   }
 
-  async get(property, args, fallback) {
+  async get(key, args = null, fallback = getL10nFallback(key, args)) {
     const l10n = await this._ready;
-    return l10n.get(property, args, fallback);
+    return l10n.get(key, args, fallback);
   }
 
   async translate(element) {
@@ -48,6 +49,4 @@ class GenericL10n {
   }
 }
 
-export {
-  GenericL10n,
-};
+export { GenericL10n };
