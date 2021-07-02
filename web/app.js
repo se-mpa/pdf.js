@@ -889,10 +889,14 @@ const PDFViewerApplication = {
     if (typeof file === "string") {
       // URL
       this.setTitleUsingUrl(file);
-        parameters.url = file;
-        // Set docBaseUrl to allow resolving of relative href's. 
-        // Replace "storage" ref with "viewer", to allow backing application to redirect if necessary.
-        parameters.docBaseUrl = (file.substring(0, file.lastIndexOf("/")) + "/").replace("/storage/", "/viewer/");
+      parameters.url = file;
+
+      // Set docBaseUrl to allow resolving of relative href's.
+      parameters.docBaseUrl = file.substring(0, file.lastIndexOf("/")) + "/";
+      parameters.docBaseUrl = parameters.docBaseUrl.replace(
+        "/storage/",
+        "/viewer/"
+      );
     } else if (file && "byteLength" in file) {
       // ArrayBuffer
       parameters.data = file;
