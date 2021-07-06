@@ -905,10 +905,7 @@ const PDFViewerApplication = {
       if (key === "docBaseUrl" && !value) {
         // Set docBaseUrl to allow resolving of relative href's.
         value = file.substring(0, file.lastIndexOf("/")) + "/";
-        value = value.replace(
-          "/storage/",
-          "/viewer/"
-        );
+        value = value.replace("/storage/", "/viewer/");
       }
 
       parameters[key] = value;
