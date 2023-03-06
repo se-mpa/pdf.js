@@ -176,7 +176,7 @@
     },
     "enableXfa": {
       "type": "boolean",
-      "default": true
+      "default": false
     },
     "historyUpdateUrl": {
       "type": "boolean",
